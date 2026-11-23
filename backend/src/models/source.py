@@ -13,6 +13,7 @@ class Dataset(Base):
     filename: Mapped[str] = mapped_column(String(160))
     checksum: Mapped[str] = mapped_column(String(64))
     rows: Mapped[list] = mapped_column(JSON)
+    outages: Mapped[list] = mapped_column(JSON, default=list)
     row_count: Mapped[int]
     author: Mapped[str] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(default=now)

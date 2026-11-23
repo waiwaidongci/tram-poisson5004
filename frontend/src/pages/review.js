@@ -31,9 +31,10 @@ export async function reviewPage(route, refresh) {
   return el('div', {class:'two-col'},
     panel(job.name, p(job.result.headline,'intro-copy'), p(job.result.note),
       link('查看计算证据',`#results/${id}`,{class:'quiet'}),
-      pill(REVIEW[job.review],job.review),
+      pill(REVIEW[job.review],job.review), job.stale && pill('已失效','stale'),
       job.review_note && el('div',{class:'decision'},p(job.decision),p(job.review_note)),
-      job.review === 'pending' && (session.canReview ? reviewForm(job,spec,refresh) : p('等待业务负责人复核。','subtle'))),
+      job.stale && p('源数据已更新，该结论已失效，请基于最新批次重算后再复核。','feedback'),
+      job.review === 'pending' && !job.stale && (session.canReview ? reviewForm(job,spec,refresh) : p('等待业务负责人复核。','subtle'))),
     panel('可复核记录', el('ul',{class:'method-list'}, completed.map(run =>
-      el('li',{}, link(run.name,`#review/${run.id}`), ' ', pill(REVIEW[run.review],run.review))))));
+      el('li',{}, link(run.name,`#review/${run.id}`), ' ', pill(REVIEW[run.review],run.review), run.stale && [' ', pill('已失效','stale')]))))));
 }

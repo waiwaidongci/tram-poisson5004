@@ -42,7 +42,7 @@ export async function runPage(route, refresh) {
   }));
   const runList = table([
     {label:'运行',render:item=>link(item.name,`#results/${item.id}`)},
-    {label:'状态',render:item=>pill(STATUS[item.status],item.status)},
+    {label:'状态',render:item=>el('span',{class:'activity'},pill(STATUS[item.status],item.status),item.stale&&pill('已失效','stale'))},
     {label:'时间',render:item=>date(item.created_at)},
   ],runs,{caption:'运行记录',empty:'首次运行后将在此显示后台状态。'});
   const scheduleList = scheduling && panel('定时计划',table([

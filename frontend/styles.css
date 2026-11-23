@@ -72,7 +72,9 @@ h2 + .metrics { margin-top:.8rem; }
 .activity { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; }
 .activity p { flex-basis:100%; }
 .pill { display:inline-block; padding:.23rem .55rem; font-size:.84rem; font-weight:700; background:var(--accent-soft); color:var(--ink); border:1px solid var(--line); }
-.pill:is([data-state="failed"],[data-state="returned"],[data-state="blocked"]) { border-color:oklch(58% .16 29); }
+.pill:is([data-state="failed"],[data-state="returned"],[data-state="blocked"],[data-state="stale"]) { border-color:oklch(58% .16 29); }
+.stale-banner { display:flex; flex-wrap:wrap; gap:.6rem; align-items:center; justify-content:space-between; padding:.9rem; border:1px solid oklch(58% .16 29); }
+.stale-banner p { margin:0; font-weight:650; color:light-dark(oklch(43% .17 27),oklch(75% .14 32)); }
 .table-wrap { overflow:auto; }
 table { width:100%; border-collapse:collapse; border-spacing:0; font-size:.9rem; font-variant-numeric:tabular-nums; }
 :where(th,td) { padding:.58rem .6rem; text-align:left; border-bottom:1px solid var(--line); max-width:24rem; overflow-wrap:anywhere; }

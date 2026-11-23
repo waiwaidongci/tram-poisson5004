@@ -25,15 +25,19 @@ export async function results(route, refresh) {
       .catch(error=>{if(status.isConnected) status.textContent=error.message;});
     return panel(job.name,pill(STATUS[job.status],job.status),status,button('刷新',{class:'quiet',onClick:refresh}));
   }
-  const download = button('下载结果 CSV',{class:'quiet','data-testid':'export',onClick:event=>
+  const download = !job.stale && button('下载结果 CSV',{class:'quiet','data-testid':'export',onClick:event=>
     handler(download,message,()=>workspace.download(`/runs/${job.id}/export`,`${spec.short_name}-${job.id}.csv`))(event)});
   const history = el('label',{class:'field run-picker',for:'run-picker'},el('span',{},'切换运行记录'),
     el('select',{id:'run-picker',onChange:event=>{location.hash=`#results/${event.target.value}`;}},
       (runs.some(item=>item.id===job.id) ? runs : [job,...runs]).map(item=>el('option',{value:item.id,selected:item.id===job.id},item.name))));
+  const staleBanner = job.stale && el('div',{class:'stale-banner',role:'alert'},
+    p('源数据已更新，该结论已失效；重算完成后才会生成新的排班依据。'),
+    link('用最新批次重算',`#run/${job.dataset_id}`,{class:'quiet'}));
   const result = job.result;
   const analysis = result ? el('section',{class:'analysis','data-testid':'analysis-complete'},
+    staleBanner,
     el('div',{class:'result-head'},p(job.name,'eyeline'),h(2,result.headline),p(result.note,'intro-copy'),
-      el('div',{class:'actions'},pill(STATUS[job.status],job.status),download,message)),
+      el('div',{class:'actions'},pill(STATUS[job.status],job.status),job.stale && pill('已失效','stale'),download,message)),
     metrics(result.metrics),
     result.charts.map(plot),
     (result.sections || []).map(item=>panel(item.title,p(item.text))),

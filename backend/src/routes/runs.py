@@ -12,6 +12,7 @@ from src.models.jobs import Run
 from src.models.source import Dataset
 from src.schemas.requests import ReviewRequest, RunRequest
 from src.services.audit import record
+from src.services.datasets import latest_ids
 from src.services.validation import normalize_params
 from src.utils import views
 from src.utils.wakeup import wake
@@ -28,7 +29,9 @@ def require_job(db, run_id, lock=False):
 
 @router.get('')
 def index(db: Session = Depends(connection), actor: User = Depends(current)):
-    return [views.run(item) for item in db.scalars(select(Run).order_by(Run.id.desc()).limit(100))]
+    current_ids = latest_ids(db)
+    return [views.run(item, stale=item.dataset_id not in current_ids)
+            for item in db.scalars(select(Run).order_by(Run.id.desc()).limit(100))]
 
 
 @router.post('', status_code=202)
@@ -42,17 +45,20 @@ def create(body: RunRequest, db: Session = Depends(connection),
     record(db, actor.username, 'analysis.queued', item.id, dataset_id=item.dataset_id)
     db.commit()
     wake()
-    return views.run(item, detail=True)
+    return views.run(item, detail=True, stale=item.dataset_id not in latest_ids(db))
 
 
 @router.get('/{run_id}')
 def detail(run_id: int, db: Session = Depends(connection), actor: User = Depends(current)):
-    return views.run(require_job(db, run_id), detail=True)
+    item = require_job(db, run_id)
+    return views.run(item, detail=True, stale=item.dataset_id not in latest_ids(db))
 
 
 @router.get('/{run_id}/export')
 def export(run_id: int, db: Session = Depends(connection), actor: User = Depends(current)):
     item = require_job(db, run_id)
+    if item.dataset_id not in latest_ids(db):
+        raise HTTPException(409, '源数据已更新，该结论已失效；请用最新批次重算后再导出排班依据')
     if not item.export_file:
         raise HTTPException(409, '此记录尚无可下载结果')
     path = ARTIFACTS / item.export_file
@@ -67,6 +73,8 @@ def review(run_id: int, body: ReviewRequest, db: Session = Depends(connection),
     item = require_job(db, run_id, lock=True)
     if item.status != Status.COMPLETE or item.review != Review.PENDING:
         raise HTTPException(409, '只有已完成且待复核的记录可以提交决定')
+    if item.dataset_id not in latest_ids(db):
+        raise HTTPException(409, '源数据已更新，该结论已失效；请基于最新批次重算后再复核')
     if body.review == Review.PENDING:
         raise ValueError('请选择通过或退回')
     if body.review == Review.ACCEPTED and not body.decision:
@@ -77,4 +85,4 @@ def review(run_id: int, body: ReviewRequest, db: Session = Depends(connection),
     item.review, item.review_note, item.decision = body.review, body.note, body.decision or None
     record(db, actor.username, f'review.{item.review}', item.id, note=body.note, decision=item.decision)
     db.commit()
-    return views.run(item, detail=True)
+    return views.run(item, detail=True, stale=False)

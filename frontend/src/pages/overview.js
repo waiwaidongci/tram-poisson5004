@@ -23,7 +23,7 @@ export async function overview() {
       panel('当前批次', metrics([{label:'数据批次',value:datasets.length},{label:'运行记录',value:runs.length}]),
         datasets[0] && p(datasets[0].filename,'filename')),
       panel('最近运行', latest ? el('div',{class:'activity'},link(latest.name,`#results/${latest.id}`),
-        pill(STATUS[latest.status],latest.status),p(date(latest.created_at),'subtle'))
+        pill(STATUS[latest.status],latest.status),latest.stale && pill('已失效','stale'),p(date(latest.created_at),'subtle'))
         : empty('进入运行页，使用演示数据执行首次分析。','#run','前往运行')),
       panel('现场问题', el('ul', {class:'method-list'}, spec.pains.map(text => el('li',{},text))))));
 }

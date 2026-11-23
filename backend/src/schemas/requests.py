@@ -13,6 +13,7 @@ class Upload(Request):
     name: str = Field(min_length=1, max_length=120)
     filename: str = Field(min_length=1, max_length=160)
     csv_text: str = Field(min_length=1, max_length=2_000_000)
+    outages_csv: str = Field(default='', max_length=1_000_000)
 
 class RunRequest(Request):
     dataset_id: int = Field(gt=0)

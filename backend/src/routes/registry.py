@@ -10,8 +10,8 @@ from src.models.identity import User
 from src.models.source import Dataset
 from src.schemas.requests import Upload
 from src.services.audit import record
-from src.services.datasets import save, template
-from src.services.validation import parse_rows
+from src.services.datasets import outage_template, save, template
+from src.services.validation import parse_outages, parse_rows
 from src.utils import views
 
 router = APIRouter()
@@ -29,6 +29,13 @@ def sample(actor: User = Depends(current)):
                     headers={'Content-Disposition': f"attachment; filename*=UTF-8''{filename}"})
 
 
+@router.get('/outages-template')
+def outage_sample(actor: User = Depends(current)):
+    filename = quote(SPEC['outage_sample_name'])
+    return Response(outage_template(), media_type='text/csv; charset=utf-8',
+                    headers={'Content-Disposition': f"attachment; filename*=UTF-8''{filename}"})
+
+
 @router.get('/datasets')
 def datasets(db: Session = Depends(connection), actor: User = Depends(current)):
     return [views.dataset(item) for item in db.scalars(select(Dataset).order_by(Dataset.id.desc()).limit(100))]
@@ -40,15 +47,16 @@ def details(dataset_id: int, offset: int = Query(0, ge=0), limit: int = Query(16
     item = db.get(Dataset, dataset_id)
     if not item:
         raise HTTPException(404, '找不到该数据批次')
-    return {**views.dataset(item), 'rows': item.rows[offset:offset + limit]}
+    return {**views.dataset(item), 'rows': item.rows[offset:offset + limit], 'outages': item.outages or []}
 
 
 @router.post('/datasets', status_code=201)
 def upload(body: Upload, db: Session = Depends(connection),
            actor: User = Depends(allow(Role.ADMIN, Role.ANALYST))):
     rows = parse_rows(body.csv_text)
-    item, created = save(db, body.name, body.filename, rows, actor.username)
+    outages = parse_outages(body.outages_csv)
+    item, created = save(db, body.name, body.filename, rows, actor.username, outages=outages)
     if created:
-        record(db, actor.username, 'dataset.imported', item.id, rows=item.row_count)
+        record(db, actor.username, 'dataset.imported', item.id, rows=item.row_count, outages=len(outages))
     db.commit()
     return {**views.dataset(item), 'created': created}

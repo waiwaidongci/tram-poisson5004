@@ -44,32 +44,45 @@ def cell(field, raw):
     return value
 
 
-def parse_rows(text):
+def _parse(text, fields, label, limit, limit_message):
     reader = csv.DictReader(io.StringIO(text.removeprefix('\ufeff'), newline=''), strict=True)
-    fields = SPEC['fields']
     keys = {field['key'] for field in fields}
     required = {field['key'] for field in fields if field.get('required', True)}
     rows = []
     try:
         headers = reader.fieldnames or []
         if not required <= set(headers) or not set(headers) <= keys or len(headers) != len(set(headers)):
-            raise ValueError('CSV 表头与字段说明不符，请下载模板检查列名')
+            raise ValueError(f'{label}表头与字段说明不符，请下载模板检查列名')
         for raw in reader:
-            if len(rows) >= 5000:
-                raise ValueError('一个数据批次最多导入 5000 行')
+            if len(rows) >= limit:
+                raise ValueError(limit_message)
             try:
                 if None in raw or any(value is None for value in raw.values()):
                     raise ValueError('工作表的列数与表头不一致')
                 rows.append({field['key']: cell(field, raw.get(field['key'])) for field in fields})
             except ValueError as error:
-                raise ValueError(f'CSV 第 {reader.line_num} 行 · {error}') from None
+                raise ValueError(f'{label}第 {reader.line_num} 行 · {error}') from None
     except csv.Error:
-        raise ValueError(f'CSV 第 {reader.line_num} 行附近格式不正确') from None
+        raise ValueError(f'{label}第 {reader.line_num} 行附近格式不正确') from None
+    return rows
+
+
+def parse_rows(text):
+    rows = _parse(text, SPEC['fields'], 'CSV ', 5000, '一个数据批次最多导入 5000 行')
     if not rows:
         raise ValueError('CSV 至少需要一行有效数据')
     if hasattr(analysis, 'validate_rows'):
         analysis.validate_rows(rows)
     return rows
+
+
+def parse_outages(text):
+    if not text or not text.strip():
+        return []
+    records = _parse(text, SPEC['outage_fields'], '停测单 CSV ', 2000, '一个数据批次最多导入 2000 条停测记录')
+    if hasattr(analysis, 'validate_outages'):
+        analysis.validate_outages(records)
+    return records
 
 
 def normalize_params(params):
